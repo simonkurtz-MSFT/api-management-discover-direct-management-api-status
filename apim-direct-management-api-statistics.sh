@@ -97,21 +97,30 @@ for SUB in $SUBSCRIPTIONS; do
             if [ -n "$name" ]; then
                 echo -e "\tGetting tenant access information for API Management instance $name in resource group $resourceGroup..."
 
-                # Call REST API using az rest and capture JSON output
-                TENANT_ACCESS=$(az rest --method GET \
-                    --uri "https://management.azure.com/subscriptions/$SUB/resourceGroups/$resourceGroup/providers/Microsoft.ApiManagement/service/$name/tenant/access?api-version=2022-08-01" \
-                    --output json 2>/dev/null)
-
-                # Check if the REST call was successful
-                REST_STATUS=$?
-
-                if [ $REST_STATUS -eq 0 ] && [ -n "$TENANT_ACCESS" ]; then
-                    # Extract the enabled status - grab text after "enabled": and before comma or }
-                    ENABLED=$(echo "$TENANT_ACCESS" | grep -o '"enabled": *[^,}]*' | awk -F': ' '{print $2}' | tr -d ' "')
-
-                    echo -e "\t\tTenant access enabled: $ENABLED"
+                # Check if we have a V2 SKU as the Direct Management API does not apply there.
+                if [[ "$sku" == *"V2"* ]]; then
+                    # For V2 SKUs, tenant access is not applicable
+                    ENABLED="Not Applicable"
+                    echo -e "\t\tSKU is V2. Tenant access is not applicable."
                 else
-                    ENABLED="UNKNOWN"
+                    # For V1 SKUs, check tenant access status
+
+                    # Call REST API using az rest and capture JSON output
+                    TENANT_ACCESS=$(az rest --method GET \
+                        --uri "https://management.azure.com/subscriptions/$SUB/resourceGroups/$resourceGroup/providers/Microsoft.ApiManagement/service/$name/tenant/access?api-version=2022-08-01" \
+                        --output json 2>/dev/null)
+
+                    # Check if the REST call was successful
+                    REST_STATUS=$?
+
+                    if [ $REST_STATUS -eq 0 ] && [ -n "$TENANT_ACCESS" ]; then
+                        # Extract the enabled status - grab text after "enabled": and before comma or }
+                        ENABLED=$(echo "$TENANT_ACCESS" | grep -o '"enabled": *[^,}]*' | awk -F': ' '{print $2}' | tr -d ' "')
+
+                        echo -e "\t\tTenant access enabled: $ENABLED"
+                    else
+                        ENABLED="UNKNOWN"
+                    fi
                 fi
 
                 # Add comma for JSON array elements except for first element
@@ -139,11 +148,11 @@ JSON_RESULTS+="\n]"
 echo -e "\n------------------------------------------------------\n"
 
 # Print headers
-printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-8s\n" \
+printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-15s\n" \
     "Subscription ID" "Resource Group" "API Management Name" "Location" "SKU" "Enabled"
 
 # Print separator line
-printf "%s\n" "$(printf '=%.0s' {1..180})"
+printf "%s\n" "$(printf '=%.0s' {1..187})"
 
 # Process each JSON object
 echo "$JSON_RESULTS" | grep -o '{[^}]*}' | while read -r line; do
@@ -154,7 +163,7 @@ echo "$JSON_RESULTS" | grep -o '{[^}]*}' | while read -r line; do
     SKU=$(echo "$line" | grep -o '"sku":"[^"]*"' | cut -d'"' -f4)
     ENABLED=$(echo "$line" | grep -o '"enabled":"[^"]*"' | cut -d'"' -f4)
 
-    printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-8s\n" \
+    printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-15s\n" \
         "$SUB" "$RG" "$NAME" "$LOC" "$SKU" "$ENABLED"
 
 done
