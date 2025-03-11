@@ -1,4 +1,4 @@
-# api-management-discover-direct-management-api-status
+# Discover Direct Management API Use in API Management Instances
 
 The Direct management API Management REST API is deprecated and will be [retired in March 2025](https://learn.microsoft.com/rest/api/apimanagement/apimanagementrest/api-management-rest).
 
