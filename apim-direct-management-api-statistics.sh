@@ -95,7 +95,7 @@ for SUB in $SUBSCRIPTIONS; do
         # Process and display in table format
         while IFS=$'\t' read -r name resourceGroup location sku; do
             if [ -n "$name" ]; then
-                echo -e "\tGetting tenant access information for $name in $resourceGroup..."
+                echo -e "\tGetting tenant access information for API Management instance $name in resource group $resourceGroup..."
 
                 # Call REST API using az rest and capture JSON output
                 TENANT_ACCESS=$(az rest --method GET \
@@ -109,7 +109,7 @@ for SUB in $SUBSCRIPTIONS; do
                     # Extract the enabled status - grab text after "enabled": and before comma or }
                     ENABLED=$(echo "$TENANT_ACCESS" | grep -o '"enabled": *[^,}]*' | awk -F': ' '{print $2}' | tr -d ' "')
 
-                    echo "Tenant access enabled: $ENABLED"
+                    echo -e "\t\tTenant access enabled: $ENABLED"
                 else
                     ENABLED="UNKNOWN"
                 fi
