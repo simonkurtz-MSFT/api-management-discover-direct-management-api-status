@@ -4,6 +4,10 @@ The Direct management API Management REST API is deprecated and will be [retired
 
 This repo helps discover which API Management in your instances have this API enabled. The new V2 SKUs are not affected by this.
 
+## Prerequisites
+
+This script requires the [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli) to be installed prior to execution.
+
 ## Execution
 
 Run the following script with your Azure tenant ID. Select any subscription if the login asks for one. The script will subsequently loop over all subscriptions in your tenant.
