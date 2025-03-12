@@ -61,7 +61,7 @@ JSON_RESULTS="["
 
 # Search for API Management instances across all subscriptions
 echo "------------------------------------------------------"
-echo -e "Searching for API Management instances across all subscriptions:\n"
+echo -e "Searching for API Management instances across all subscriptions:"
 
 # Count total subscriptions
 TOTAL_SUBS=$(echo "$SUBSCRIPTIONS" | wc -l)
@@ -172,12 +172,19 @@ done
 TOTAL_COUNT=$(echo -e "$JSON_RESULTS" | grep -c "name")
 ENABLED_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"true"')
 DISABLED_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"false"')
+NA_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"Not Applicable"')
 UNKNOWN_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"UNKNOWN"')
 
-echo ""
-echo "Total instances : $TOTAL_COUNT"
-echo "Enabled         : $ENABLED_COUNT  <-- Update any tooling using the enabled Direct Management API!"
-echo "Disabled        : $DISABLED_COUNT"
-echo "Unknown         : $UNKNOWN_COUNT"
+echo -e "\n"
+echo "Total API Management instances : $TOTAL_COUNT"
+echo "-----------------------------------"
+echo "Enabled                        : $ENABLED_COUNT  <-- Update any tooling using the enabled Direct Management API!"
+echo "Disabled                       : $DISABLED_COUNT"
+echo "Not Applicable                 : $NA_COUNT"
+
+# There shouldn't be any unknowns, so we don't want to add noise to signal if the count is zero.
+if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+    echo "Unknown                        : $UNKNOWN_COUNT"
+fi
 
 echo -e "\nDone."
