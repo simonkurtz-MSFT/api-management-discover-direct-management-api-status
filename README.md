@@ -16,7 +16,7 @@ Run the following script with your Azure tenant ID. Select any subscription if t
 ./apim-direct-management-api-statistics.sh <tenant-id>
 ```
 
-You can also hard-code a test subscription at the top of the shell script to check a specific subscription.
+You can also hard-code a test subscription at the top of the shell script to check a specific subscription. There's also a `SKIP_LOGIN` flag in the script that allows using the current tenant ID rather than repetitive logins.
 
 ## Results
 
