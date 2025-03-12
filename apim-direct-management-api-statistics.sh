@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Azure CLI script to log into an Azure tenant, loop over all of its subscriptions to search for API Management instances,
 # then check which one have the Direct Management API enabled as it is end-of-life March 2025.
