@@ -20,8 +20,8 @@ SKIP_LOGIN=0
 # *   Startup & Prerequisite Checks & Login   *
 # *********************************************
 
-echo -e "\nAzure API Management Direct Management API Statistics V1.1.0"
-echo -e "============================================================\n"
+echo -e "\nAzure API Management Direct Management API Statistics"
+echo -e "=====================================================\n"
 
 # Check if Azure CLI is installed
 if ! command -v az &> /dev/null; then
