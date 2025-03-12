@@ -1,12 +1,27 @@
-#!/bin/bash
+#!/bin/sh
 
 # Azure CLI script to log into an Azure tenant, loop over all of its subscriptions to search for API Management instances,
 # then check which one have the Direct Management API enabled as it is end-of-life March 2025.
 
+
+# *********************************************
+# *             CONFIGURATION                 *
+# *********************************************
+
 # Hard-code a test subscription, if you wish.
 #HARDCODED_SUBSCRIPTION="<your-subscription-id>"
 
-echo ""
+# Set SKIP_LOGIN to 0 to prompt for login (default).
+# Set SKIP_LOGIN to 1 to skip the login prompt if you have already logged in. This will then use the logged-in Azure tenant. You do not need to pass a tenant ID then.
+SKIP_LOGIN=0
+
+
+# *********************************************
+# *   Startup & Prerequisite Checks & Login   *
+# *********************************************
+
+echo -e "\nAzure API Management Direct Management API Statistics"
+echo -e "=====================================================\n"
 
 # Check if Azure CLI is installed
 if ! command -v az &> /dev/null; then
@@ -15,32 +30,53 @@ if ! command -v az &> /dev/null; then
     exit 1
 fi
 
-# Check if tenant ID is provided
-if [ -z "$1" ]; then
-    echo "Usage: $0 <tenant-id>"
-    echo "Example: $0 your-tenant-id"
+if [ "$SKIP_LOGIN" -eq 0 ]; then
+    # Log into Azure with the provided Azure tenant ID
+
+    # Check if tenant ID is provided
+    if [ -z "$1" ]; then
+        echo -e "An Azure tenant ID (GUID) is required.\n"
+        echo "Usage   : $0 <tenant-id>"
+        exit 1
+    fi
+
+    # Log in
+    TENANT_ID=${1}
+
+    # Check if the tenant ID is an all-zero GUID or not in proper GUID format
+    if [ "$TENANT_ID" = "00000000-0000-0000-0000-000000000000" ] || \
+    ! echo "$TENANT_ID" | grep -Eq '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
+        echo "Error: $TENANT_ID is not a valid tenant GUID."
+        exit 1
+    fi
+
+    echo -e "Logging into Azure tenant $TENANT_ID...\n"
+    az login --tenant "$TENANT_ID"
+
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to log into Azure. Please check your credentials and try again."
+        exit 1
+    fi
+
+    echo -e "Successfully logged into Azure.\n"
+elif [ "$SKIP_LOGIN" -eq 1 ]; then
+    echo -e "Skipping login as per configuration.\n"
+
+    TENANT_ID=$(az account show --query tenantId -o tsv)
+    echo "Using current tenant ID $TENANT_ID"
+else
+    echo "Invalid value for SKIP_LOGIN. Please set it to 0 or 1."
     exit 1
 fi
 
-# Log in
-TENANT_ID=${1}
-echo "Logging into Azure tenant $TENANT_ID..."
-az login --tenant "$TENANT_ID"
 
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to log into Azure. Please check your credentials and try again."
-    exit 1
-fi
-
-echo "Successfully logged into Azure."
-
-# -------------------------------------------------------------------------------------------------
-
-echo "------------------------------------------------------"
+# *********************************************
+# *     Obtaining subscriptions to check      *
+# *********************************************
 
 # Check if HARDCODED_SUBSCRIPTION has a real value (not empty and not the placeholder)
 if [[ -n "$HARDCODED_SUBSCRIPTION" && "$HARDCODED_SUBSCRIPTION" != "<your-subscription-id>" ]]; then
-    echo "Using hardcoded subscription: $HARDCODED_SUBSCRIPTION"
+    echo -e "Using hard-coded subscription ID $HARDCODED_SUBSCRIPTION\n"
     SUBSCRIPTIONS="$HARDCODED_SUBSCRIPTION"
 else
     echo "Retrieving all subscriptions in tenant: $TENANT_ID"
@@ -56,17 +92,21 @@ else
     echo "Found $(echo "$SUBSCRIPTIONS" | wc -l) subscription(s) in tenant."
 fi
 
-# Initialize JSON array for results
-JSON_RESULTS="["
+
+# *********************************************
+# *      Checking APIM in subscriptions       *
+# *********************************************
 
 # Search for API Management instances across all subscriptions
-echo "------------------------------------------------------"
-echo -e "Searching for API Management instances across all subscriptions:\n"
+echo -e "Searching for API Management instances across all subscriptions:"
 
 # Count total subscriptions
 TOTAL_SUBS=$(echo "$SUBSCRIPTIONS" | wc -l)
 CURRENT_SUB=0
 FIRST_ENTRY=true
+
+# Initialize JSON array for results
+JSON_RESULTS="["
 
 for SUB in $SUBSCRIPTIONS; do
     # Increment counter
@@ -143,9 +183,11 @@ done
 # Close JSON array
 JSON_RESULTS+="\n]"
 
-# -------------------------------------------------------------------------------------------------
+# *********************************************
+# *              Display Results              *
+# *********************************************
 
-echo -e "\n------------------------------------------------------\n"
+echo -e "\n\n"
 
 # Print headers
 printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-15s\n" \
@@ -172,12 +214,19 @@ done
 TOTAL_COUNT=$(echo -e "$JSON_RESULTS" | grep -c "name")
 ENABLED_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"true"')
 DISABLED_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"false"')
+NA_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"Not Applicable"')
 UNKNOWN_COUNT=$(echo -e "$JSON_RESULTS" | grep -c '"enabled":"UNKNOWN"')
 
-echo ""
-echo "Total instances : $TOTAL_COUNT"
-echo "Enabled         : $ENABLED_COUNT  <-- Update any tooling using the enabled Direct Management API!"
-echo "Disabled        : $DISABLED_COUNT"
-echo "Unknown         : $UNKNOWN_COUNT"
+echo -e "\n"
+echo "Total API Management instances : $TOTAL_COUNT"
+echo "-----------------------------------"
+echo "Enabled                        : $ENABLED_COUNT  <-- Update any tooling using the enabled Direct Management API!"
+echo "Disabled                       : $DISABLED_COUNT"
+echo "Not Applicable                 : $NA_COUNT"
+
+# There shouldn't be any unknowns, so we don't want to add noise to signal if the count is zero.
+if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+    echo "Unknown                        : $UNKNOWN_COUNT"
+fi
 
 echo -e "\nDone."
