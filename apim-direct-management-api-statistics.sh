@@ -11,10 +11,54 @@
 # Hard-code a test subscription, if you wish.
 HARDCODED_SUBSCRIPTION="<your-subscription-id>"
 
-# Set SKIP_LOGIN to 0 to prompt for login (default).
-# Set SKIP_LOGIN to 1 to skip the login prompt if you have already logged in. This will then use the logged-in Azure tenant. You do not need to pass a tenant ID then.
+# Default login behavior - will be modified by command line args
+# SKIP_LOGIN set to 0 prompts for login; set to 1 skips the login prompt and attempt to use the logged-in Azure tenant. You do not need to pass a tenant ID then.
 SKIP_LOGIN=0
+TENANT_ID=""
 
+# *********************************************
+# *        Command Line Argument Parser       *
+# *********************************************
+
+display_help() {
+    echo -e "\nAzure API Management Direct Management API Statistics"
+    echo -e "=====================================================\n"
+    echo "This script helps identify API Management instances with Direct Management API enabled."
+    echo -e "\nUsage:"
+    echo "  $0 -t <tenant-id>   - Logs into specific Azure tenant and checks all subscriptions"
+    echo "  $0 -sl              - Skips login and uses the current Azure CLI session's Azure tenant"
+    echo -e "\nExamples:"
+    echo "  $0 -t 12345678-1234-1234-1234-123456789012"
+}
+
+# Parse command-line arguments
+if [ "$#" -eq 0 ]; then
+    display_help
+    exit 0
+fi
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -t)
+            if [ -z "$2" ]; then
+                echo "Error: Azure Tenant ID is required with -t option."
+                display_help
+                exit 1
+            fi
+            TENANT_ID=$2
+            shift 2
+            ;;
+        -sl)
+            SKIP_LOGIN=1
+            shift
+            ;;
+        *)
+            echo "Error: Unknown option $1"
+            display_help
+            exit 1
+            ;;
+    esac
+done
 
 # *********************************************
 # *   Startup & Prerequisite Checks & Login   *
@@ -34,14 +78,11 @@ if [ "$SKIP_LOGIN" -eq 0 ]; then
     # Log into Azure with the provided Azure tenant ID
 
     # Check if Azure tenant ID is provided
-    if [ -z "$1" ]; then
-        echo -e "An Azure tenant ID (GUID) is required. Alternatively, if you are already logged in, you can set SKIP_LOGIN in the script to 1.\n"
-        echo "Usage   : $0 <tenant-id>"
+    if [ -z "$TENANT_ID" ]; then
+        echo -e "Error: No tenant ID provided. Use -t option to specify a tenant ID."
+        display_help
         exit 1
     fi
-
-    # Log in
-    TENANT_ID=${1}
 
     # Check if the Azure tenant ID is an all-zero GUID or not in proper GUID format
     if [ "$TENANT_ID" = "00000000-0000-0000-0000-000000000000" ] || \
@@ -61,10 +102,8 @@ if [ "$SKIP_LOGIN" -eq 0 ]; then
 
     echo -e "Successfully logged into Azure.\n"
 elif [ "$SKIP_LOGIN" -eq 1 ]; then
-    echo -e "Skipping login as per configuration.\n"
-
     TENANT_ID=$(az account show --query tenantId -o tsv)
-    echo "Using current tenant ID $TENANT_ID"
+    echo -e "Using current tenant ID $TENANT_ID\n"
 else
     echo "Invalid value for SKIP_LOGIN. Please set it to 0 or 1."
     exit 1
@@ -80,8 +119,6 @@ if [[ -n "$HARDCODED_SUBSCRIPTION" && "$HARDCODED_SUBSCRIPTION" != "<your-subscr
     echo -e "Using hard-coded subscription ID $HARDCODED_SUBSCRIPTION\n"
     SUBSCRIPTIONS="$HARDCODED_SUBSCRIPTION"
 else
-    echo "Retrieving all subscriptions in tenant: $TENANT_ID"
-
     # Get all subscriptions
     SUBSCRIPTIONS=$(az account list --query '[].id' -o tsv)
 
@@ -90,7 +127,7 @@ else
         exit 1
     fi
 
-    echo "Found $(echo "$SUBSCRIPTIONS" | wc -l) subscription(s) in tenant."
+    echo -e "Found $(echo "$SUBSCRIPTIONS" | wc -l) subscription(s) in tenant.\n"
 fi
 
 
@@ -208,7 +245,6 @@ echo "$JSON_RESULTS" | grep -o '{[^}]*}' | while read -r line; do
 
     printf "%-36s | %-45s | %-45s | %-20s | %-12s | %-15s\n" \
         "$SUB" "$RG" "$NAME" "$LOC" "$SKU" "$ENABLED"
-
 done
 
 # Count results by enabled status
