@@ -9,7 +9,7 @@
 # *********************************************
 
 # Hard-code a test subscription, if you wish.
-#HARDCODED_SUBSCRIPTION="<your-subscription-id>"
+HARDCODED_SUBSCRIPTION="<your-subscription-id>"
 
 # Set SKIP_LOGIN to 0 to prompt for login (default).
 # Set SKIP_LOGIN to 1 to skip the login prompt if you have already logged in. This will then use the logged-in Azure tenant. You do not need to pass a tenant ID then.
@@ -33,9 +33,9 @@ fi
 if [ "$SKIP_LOGIN" -eq 0 ]; then
     # Log into Azure with the provided Azure tenant ID
 
-    # Check if tenant ID is provided
+    # Check if Azure tenant ID is provided
     if [ -z "$1" ]; then
-        echo -e "An Azure tenant ID (GUID) is required.\n"
+        echo -e "An Azure tenant ID (GUID) is required. Alternatively, if you are already logged in, you can set SKIP_LOGIN in the script to 1.\n"
         echo "Usage   : $0 <tenant-id>"
         exit 1
     fi
@@ -43,13 +43,14 @@ if [ "$SKIP_LOGIN" -eq 0 ]; then
     # Log in
     TENANT_ID=${1}
 
-    # Check if the tenant ID is an all-zero GUID or not in proper GUID format
+    # Check if the Azure tenant ID is an all-zero GUID or not in proper GUID format
     if [ "$TENANT_ID" = "00000000-0000-0000-0000-000000000000" ] || \
     ! echo "$TENANT_ID" | grep -Eq '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
         echo "Error: $TENANT_ID is not a valid tenant GUID."
         exit 1
     fi
 
+    # Log in with the Azure tenant ID
     echo -e "Logging into Azure tenant $TENANT_ID...\n"
     az login --tenant "$TENANT_ID"
 
